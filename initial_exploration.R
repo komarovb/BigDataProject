@@ -1,5 +1,13 @@
-library(data.table)
-library(mlr)
+library(data.table) # TODO remove because not used!
+
+# Naive Bayes implementation:
+library(naivebayes) # https://github.com/majkamichal/naivebayes
+
+# Random forest implementation
+library(randomForest)
+
+# Useful aggregation & manipulation functions
+library(dplyr)
 
 # student_dt = fread("data/SM_2012_13_20141103_01.csv")
 # staff_dt = fread("STT_2012_13_20141103.csv")
@@ -28,12 +36,83 @@ library(mlr)
 
 # WORKING ON MISSING VALUES ------------------------------
 
+# Produce top-2 accuracy
+top_n_accuracy <- function(x, top_accuracy) {
+  x = sort(x, decreasing=TRUE)
+  if(top_accuracy == 2) {
+    top_accuracy = array(c(names(x[1]), names(x[2])))
+  } else if(top_accuracy == 3) {
+    top_accuracy = array(c(names(x[1]), names(x[2]), names(x[3])))
+  }
+  return(top_accuracy)
+}
+
+# Transform grant
+transform_grant <- function(x) {
+  tmp = strsplit(x, '.', fixed=TRUE)
+  tmp = unlist(tmp)
+  if(length(tmp) > 2){
+    tmp = paste(tmp[1], tmp[2], '.', tmp[3], sep='')
+  } else if(length(tmp) > 1){
+    tmp = paste(tmp[1], '.', tmp[2], sep='')
+  }
+  
+  return(as.numeric(tmp))
+}
+
 # Remove selected columns
 remove_columns <- function(df, columns_to_drop) {
   col_names = colnames(df)
   col_names = col_names[! col_names %in% columns_to_drop]
   df = df[, col_names]
+  df[] = lapply(df, function(x) if(is.factor(x)) factor(x) else x)  # TODO refactor!
   return(df)
+}
+
+# Custom application of the Naive Bayes method
+custom_naive_bayes <- function(tmp_df, percentage_train, laplace, n) {
+  # REMOVE: STUDENT_ID, HOST_INSTITUTION_CDE, STUDY_START_DATE, ECTS_CREDITS_STUDY_AMT, STUDY_GRANT_AMT
+  # Predict: HOST_INSTITUTION_COUNTRY_CDE
+  tmp_df = remove_columns(s_df, c('STUDENT_ID', 'HOST_INSTITUTION_CDE', 'NUMB_YRS_HIGHER_EDUCAT_VALUE', 'STUDENT_SUBJECT_AREA_VALUE',
+                                  'STUDENT_STUDY_LEVEL_CDE'))
+  
+  train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*percentage_train)
+  tmp = 1:nrow(tmp_df)
+  test_data_instances = setdiff(tmp, train_data_instances)
+  
+  train_data = tmp_df[train_data_instances,]
+  # train_data[] = lapply(train_data, function(x) if(is.factor(x)) factor(x) else x) # TODO refactor
+  
+  test_data = tmp_df[test_data_instances,]
+  # test_data[] = lapply(test_data, function(x) if(is.factor(x)) factor(x) else x) # TODO refactor
+  
+  nb = naive_bayes(HOST_INSTITUTION_COUNTRY_CDE~., train_data, laplace = laplace)
+  
+  #tmp = nb %class% test_data # Alternative option
+  if(n == 1) {
+    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "class")
+    predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
+    correctly_classified = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
+    incorrectly_classified = nrow(predictions_mlr[predictions_mlr$predicted != predictions_mlr$actual, ])
+  } else if(n == 2) {
+    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob")
+    tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = n)
+    predictions_mlr = data.frame(top_1 = tmp[2,], top_2 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
+    correctly_classified = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) +
+                                                         nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,])
+  }else if(n==3) {
+    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob")
+    tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = n)
+    predictions_mlr = data.frame(top_1 = tmp[3,], top_2 = tmp[2, ], top_3 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
+    correctly_classified = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) + 
+      nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,]) + 
+      nrow(predictions_mlr[predictions_mlr$top_3 == predictions_mlr$actual,])
+  } else {
+    correctly_classified = 0
+  }
+  # t2 = colnames(tmp2)[apply(tmp2,1,which.max)]
+  accuracy = (correctly_classified / nrow(test_data)) * 100
+  return(accuracy)
 }
 
 df = read.csv("data/SM_2012_13_20141103_01.csv", header = TRUE, sep = ';') # Reading the whole data
@@ -63,7 +142,6 @@ drop_for_s = c('MOBILITY_TYPE_CDE', 'PLACEMENT_ENTERPRISE_VALUE', 'PLACEMENT_ENT
                'PLACEMENT_ENTERPRISE_SIZE_CDE', 'TYPE_PLACEMENT_SECTOR_VALUE', 'LENGTH_PLACEMENT_VALUE', 
                'PLACEMENT_START_DATE', 'ECTS_CREDITS_PLACEMENT_AMT', 'PLACEMENT_GRANT_AMT')
 s_df = remove_columns(s_df, drop_for_s)
-
 # Candidates for descriptive analytics:
 # TAUGHT_HOST_LANGUAGE_CDE, LANGUAGE_TAUGHT_CDE
 # STUDY_GRANT_AMT, PLACEMENT_GRANT_AMT, PREVIOUS_PARTICIPATION_CDE, SPECIAL_NEEDS_SUPPLEMENT_VALUE
@@ -97,39 +175,73 @@ for (i in 1:length(colums_to_check))
   missing_values_per_feature[i] = number_of_missing_values
 }
 
-# We focus on student placements
-# REMOVE: STUDENT_ID, HOST_INSTITUTION_CDE, STUDY_START_DATE, ECTS_CREDITS_STUDY_AMT, STUDY_GRANT_AMT
-# Predict: HOST_INSTITUTION_COUNTRY_CDE
-tmp_df = remove_columns(s_df, c('STUDENT_ID', 'HOST_INSTITUTION_CDE', 'STUDY_START_DATE',
-                                'ECTS_CREDITS_STUDY_AMT', 'STUDY_GRANT_AMT'))
+# Mapping Belgium from 3 into 1 country
+s_df$HOME_INSTITUTION_CTRY_CDE = unlist(lapply(s_df$HOME_INSTITUTION_CTRY_CDE, as.character))
+s_df$HOME_INSTITUTION_CTRY_CDE[s_df$HOME_INSTITUTION_CTRY_CDE == 'BEDE'] = "BE"
+s_df$HOME_INSTITUTION_CTRY_CDE[s_df$HOME_INSTITUTION_CTRY_CDE == 'BENL'] = "BE"
+s_df$HOME_INSTITUTION_CTRY_CDE[s_df$HOME_INSTITUTION_CTRY_CDE == 'BEFR'] = "BE"
+s_df$HOME_INSTITUTION_CTRY_CDE = unlist(lapply(s_df$HOME_INSTITUTION_CTRY_CDE, as.factor))
 
+s_df$HOST_INSTITUTION_COUNTRY_CDE = unlist(lapply(s_df$HOST_INSTITUTION_COUNTRY_CDE, as.character))
+s_df$HOST_INSTITUTION_COUNTRY_CDE[s_df$HOST_INSTITUTION_COUNTRY_CDE == 'BEDE'] = "BE"
+s_df$HOST_INSTITUTION_COUNTRY_CDE[s_df$HOST_INSTITUTION_COUNTRY_CDE == 'BENL'] = "BE"
+s_df$HOST_INSTITUTION_COUNTRY_CDE[s_df$HOST_INSTITUTION_COUNTRY_CDE == 'BEFR'] = "BE"
+s_df$HOST_INSTITUTION_COUNTRY_CDE = unlist(lapply(s_df$HOST_INSTITUTION_COUNTRY_CDE, as.factor))
 
-# tmp_df[, as.factor(c('HOME_INSTITUTION_CDE')), with=FALSE]
+train_percentage = 0.7
 
-train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*0.6)
-train_data = tmp_df[train_data_instances,]
-test_data = tmp_df[!train_data_instances,]
+# Naive Bayes
+accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 1)
+cat(sprintf("Naive Bayes top-1 accuracy: %f%%\n\n", accuracy))
 
-# task = makeClassifTask(data = train_data, target = "HOST_INSTITUTION_COUNTRY_CDE")
-# selected_model = makeLearner("classif.naiveBayes")
-# NB_mlr = train(selected_model, task)
+accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 2)
+cat(sprintf("Naive Bayes top-2 accuracy: %f%%\n\n", accuracy))
 
+accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 3)
+cat(sprintf("Naive Bayes top-3 accuracy: %f%%\n\n", accuracy))
 
-# predictions_mlr = as.data.frame(predict(NB_mlr, newdata = Titanic_dataset[,1:3]))
-# table(predictions_mlr[,1],Titanic_dataset$Survived)
+# Update study grant Amt!
+s_df$STUDY_GRANT_AMT = as.character(s_df$STUDY_GRANT_AMT)
+s_df$STUDY_GRANT_AMT = lapply(s_df$STUDY_GRANT_AMT, transform_grant)
+s_df$STUDY_GRANT_AMT = unlist(s_df$STUDY_GRANT_AMT)
 
-# Save data without missing values and unnecessary attributes to a new .csv file
+implement_rf = FALSE;
 
-# tmp_df[sapply(tmp_df, is.character)] <- lapply(tmp_df[sapply(tmp_df, is.character)], as.factor)
+if(implement_rf) {
+  # Random forest implementation: https://www.stat.berkeley.edu/~breiman/RandomForests/
+  tmp_df = remove_columns(s_df, c('STUDENT_ID', 'HOME_INSTITUTION_CDE', 'HOST_INSTITUTION_CDE', 'NUMB_YRS_HIGHER_EDUCAT_VALUE', 'STUDENT_SUBJECT_AREA_VALUE',
+                                  'STUDENT_STUDY_LEVEL_CDE', 'LANGUAGE_TAUGHT_CDE'))
+  
+  train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*0.6)
+  tmp = 1:nrow(tmp_df)
+  test_data_instances = setdiff(tmp, train_data_instances)
+  train_data = tmp_df[train_data_instances,]
+  test_data = tmp_df[test_data_instances,]
+  
+  
+  start_time = Sys.time()
+  rf <- randomForest(HOST_INSTITUTION_COUNTRY_CDE~., data = train_data, ntree = 500, mtry = 6, importance = TRUE)
+  end_time = Sys.time()
+  
+  cat(sprintf("Random Forest was built in: %f\n\n", end_time - start_time))
+  
+  tmp <- predict(rf, test_data, type = "class")
+  predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
+  correctly_classified = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
+  accuracy = (correctly_classified / nrow(test_data)) * 100
+  cat(sprintf("Random Forest accuracy: %f%%\n\n", accuracy))
+}
+
+# predictions_mlr[] <- lapply(predictions_mlr, as.character)
 
 # ------------------------------
 
 # TODO before presentation:
-# Do basic feature selection! 17.11.2019
-# Deal with missing values 11.11.2019 - 18.11.2019
+# Do basic feature selection! 17.11.2019 +
+# Deal with missing values 11.11.2019 - 18.11.2019 +
 
 # Implement multiple scenarious of clustering 18.11.2019
-# Implement some kind of classification / regression 18.11.2019
+# Implement some kind of classification / regression 18.11.2019 +
 
 # He will ask how we handle missing values
 # Overfitting and feature selection

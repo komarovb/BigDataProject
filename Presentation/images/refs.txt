@@ -1,0 +1,6 @@
+Naive Bayes: https://machinelearningmastery.com/naive-bayes-classifier-scratch-python/
+
+Naive: https://soundcloud.com/naivetrax
+
+Random Forest bad results: https://sciencing.com/deforestation-affect-air-10632.html
+

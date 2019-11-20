@@ -1,5 +1,8 @@
 library(data.table) # TODO remove because not used!
 
+# Features selection
+library(CORElearn)
+
 # Naive Bayes implementation:
 library(naivebayes) # https://github.com/majkamichal/naivebayes
 
@@ -36,14 +39,26 @@ library(dplyr)
 
 # WORKING ON MISSING VALUES ------------------------------
 
+# Taken from: https://blog.revolutionanalytics.com/2016/03/com_class_eval_metrics_r.html
+f1 <- function(df) {
+  diag = diag(df)
+  rowsums = apply(df, 1, sum)
+  colsums = apply(df, 2, sum)
+  diag[diag == 0] = 0.00001
+  
+  precision = diag / colsums 
+  recall = diag / rowsums 
+  f1 = 2 * precision * recall / (precision + recall) 
+  
+  return(f1)
+}
+
 # Produce top-2 accuracy
 top_n_accuracy <- function(x, top_accuracy) {
   x = sort(x, decreasing=TRUE)
-  if(top_accuracy == 2) {
-    top_accuracy = array(c(names(x[1]), names(x[2])))
-  } else if(top_accuracy == 3) {
-    top_accuracy = array(c(names(x[1]), names(x[2]), names(x[3])))
-  }
+  xs = x[1:top_accuracy]
+  labels = names(xs)
+  top_accuracy = array(labels)
   return(top_accuracy)
 }
 
@@ -71,37 +86,38 @@ remove_columns <- function(df, columns_to_drop) {
 
 # Custom application of the Naive Bayes method
 custom_naive_bayes <- function(tmp_df, percentage_train, laplace, n) {
-  # REMOVE: STUDENT_ID, HOST_INSTITUTION_CDE, STUDY_START_DATE, ECTS_CREDITS_STUDY_AMT, STUDY_GRANT_AMT
   # Predict: HOST_INSTITUTION_COUNTRY_CDE
   tmp_df = remove_columns(s_df, c('STUDENT_ID', 'HOST_INSTITUTION_CDE', 'NUMB_YRS_HIGHER_EDUCAT_VALUE', 'STUDENT_SUBJECT_AREA_VALUE',
-                                  'STUDENT_STUDY_LEVEL_CDE'))
+                                  'STUDENT_STUDY_LEVEL_CDE', 
+                                  'STUDENT_AGE_VALUE', 'LENGTH_STUDY_PERIOD_VALUE', 'TOTAL_ECTS_CREDITS_AMT', 'STUDENT_GENDER_CDE',
+                                  'ECTS_CREDITS_STUDY_AMT', 'PREVIOUS_PARTICIPATION_CDE'))
   
   train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*percentage_train)
   tmp = 1:nrow(tmp_df)
   test_data_instances = setdiff(tmp, train_data_instances)
   
   train_data = tmp_df[train_data_instances,]
-  # train_data[] = lapply(train_data, function(x) if(is.factor(x)) factor(x) else x) # TODO refactor
-  
   test_data = tmp_df[test_data_instances,]
-  # test_data[] = lapply(test_data, function(x) if(is.factor(x)) factor(x) else x) # TODO refactor
   
   nb = naive_bayes(HOST_INSTITUTION_COUNTRY_CDE~., train_data, laplace = laplace)
   
-  #tmp = nb %class% test_data # Alternative option
+  # home <- as.matrix(table(erasmushome))
+  # tmp = nb %class% test_data # Alternative option
+  # TODO refactor so that it calculates top - 3 probabilities straight away
   if(n == 1) {
-    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "class")
+    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "class", threshold = 0.5)
+    f1_score = f1(table(tmp, test_data$HOST_INSTITUTION_COUNTRY_CDE))
     predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
     correctly_classified = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
     incorrectly_classified = nrow(predictions_mlr[predictions_mlr$predicted != predictions_mlr$actual, ])
   } else if(n == 2) {
-    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob")
+    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
     tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = n)
     predictions_mlr = data.frame(top_1 = tmp[2,], top_2 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
     correctly_classified = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) +
                                                          nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,])
   }else if(n==3) {
-    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob")
+    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
     tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = n)
     predictions_mlr = data.frame(top_1 = tmp[3,], top_2 = tmp[2, ], top_3 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
     correctly_classified = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) + 
@@ -112,6 +128,18 @@ custom_naive_bayes <- function(tmp_df, percentage_train, laplace, n) {
   }
   # t2 = colnames(tmp2)[apply(tmp2,1,which.max)]
   accuracy = (correctly_classified / nrow(test_data)) * 100
+  
+  cat(sprintf("Naive Bayes top-%d accuracy: %f%%\n\n", n, accuracy))
+  if(n == 1){
+    cat(sprintf("Naive Bayes F1 score: %f\n\n", mean(f1_score)))
+  }
+  
+  # tmp = as.matrix(table(tmp))
+  # tmp2 = as.matrix(table(test_data$HOST_INSTITUTION_COUNTRY_CDE))
+  # tmp = data.frame(predicted = tmp, actual = tmp2)
+  # tmp$actual_predicted = tmp$actual - tmp$predicted
+  # tmp[order(tmp$actual_predicted_actual),]
+  
   return(accuracy)
 }
 
@@ -121,7 +149,6 @@ df = read.csv("data/SM_2012_13_20141103_01.csv", header = TRUE, sep = ';') # Rea
 # Filter unnecessary attributes based on the data structure for each type of placement
 # Remove for all:
 # ID_MOBILITY_CDE, CONSORTIUM_AGREEMENT_NUMBER, SPECIAL_NEEDS_SUPPLEMENT_VALUE, 
-# ????? SHORT_DURATION_CDE ????? QUALIFICATION_AT_HOST_CDE ?????
 drop_for_all = c('ID_MOBILITY_CDE', 
                  'CONSORTIUM_AGREEMENT_NUMBER', 'SPECIAL_NEEDS_SUPPLEMENT_VALUE', 
                  'SHORT_DURATION_CDE', 'QUALIFICATION_AT_HOST_CDE')
@@ -129,7 +156,7 @@ drop_for_all = c('ID_MOBILITY_CDE',
 df = remove_columns(df, drop_for_all)
 
 # Split data based on what was the type of placement for further processing
-s_df = df[ df$MOBILITY_TYPE_CDE == 'S',]
+s_df = df[ df$MOBILITY_TYPE_CDE == 'S' | df$MOBILITY_TYPE_CDE == 'C',]
 s_p_df = df[ df$MOBILITY_TYPE_CDE == 'C',]
 p_df = df[ df$MOBILITY_TYPE_CDE == 'P',]
 
@@ -158,7 +185,7 @@ missing_values = c('? Unknown ?', '???', '?')
 
 # DATE: STUDY_START_DATE
 
-s_df[ s_df$STUDENT_GENDER_CDE %in% missing_values, ]
+s_df[ s_df$HOME_INSTITUTION_COUNTRY_CDE %in% missing_values, ]
 s_df[ s_df$LINGUISTIC_PREPARATION_CDE %in% missing_values, ]
 
 
@@ -190,15 +217,15 @@ s_df$HOST_INSTITUTION_COUNTRY_CDE = unlist(lapply(s_df$HOST_INSTITUTION_COUNTRY_
 
 train_percentage = 0.7
 
+# tmp = table(s_df$HOST_INSTITUTION_COUNTRY_CDE)
+# tmp[order(names(tmp))]
+# INFORMATION GAIN
+# feature_gain = attrEval(HOST_INSTITUTION_COUNTRY_CDE~., tmp_df,  estimator = "InfGain")
+
 # Naive Bayes
 accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 1)
-cat(sprintf("Naive Bayes top-1 accuracy: %f%%\n\n", accuracy))
-
-accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 2)
-cat(sprintf("Naive Bayes top-2 accuracy: %f%%\n\n", accuracy))
-
-accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 3)
-cat(sprintf("Naive Bayes top-3 accuracy: %f%%\n\n", accuracy))
+# accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 2)
+# accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 3)
 
 # Update study grant Amt!
 s_df$STUDY_GRANT_AMT = as.character(s_df$STUDY_GRANT_AMT)
@@ -212,7 +239,7 @@ if(implement_rf) {
   tmp_df = remove_columns(s_df, c('STUDENT_ID', 'HOME_INSTITUTION_CDE', 'HOST_INSTITUTION_CDE', 'NUMB_YRS_HIGHER_EDUCAT_VALUE', 'STUDENT_SUBJECT_AREA_VALUE',
                                   'STUDENT_STUDY_LEVEL_CDE', 'LANGUAGE_TAUGHT_CDE'))
   
-  train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*0.6)
+  train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*0.7)
   tmp = 1:nrow(tmp_df)
   test_data_instances = setdiff(tmp, train_data_instances)
   train_data = tmp_df[train_data_instances,]
@@ -225,11 +252,14 @@ if(implement_rf) {
   
   cat(sprintf("Random Forest was built in: %f\n\n", end_time - start_time))
   
+  # TODO Add top accuracy calculations
   tmp <- predict(rf, test_data, type = "class")
+  f1_score = f1(table(tmp, test_data$HOST_INSTITUTION_COUNTRY_CDE))
   predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
   correctly_classified = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
   accuracy = (correctly_classified / nrow(test_data)) * 100
   cat(sprintf("Random Forest accuracy: %f%%\n\n", accuracy))
+  cat(sprintf("Random Forest F1 score: %f\n\n", mean(f1_score)))
 }
 
 # predictions_mlr[] <- lapply(predictions_mlr, as.character)

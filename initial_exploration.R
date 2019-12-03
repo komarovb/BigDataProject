@@ -285,7 +285,18 @@ if(implement_rf) {
 
 
 
-
+# FOR CLUSTERING
+# Create a separate table with summary information about Host universities
+# Arrtibutes:
+#   * Number of universities which have connection to this university
+#   * Number of students which came to this university
+#   * Average/Median age of student (We can use median to overcome outliers)
+#   * Number of programs
+#   * Average grant amount
+#   * Number of languages
+#   * Average number of ECTS points
+#   * Average/median (TO DECIDE) length of the program
+#   * Percentage of people who failed the program, proportion (failed / total)
 
 
 

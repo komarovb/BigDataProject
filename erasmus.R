@@ -111,35 +111,38 @@ s_dfperso=remove_columns(s_df, drop_for_perso)
 #pam.res <- pam(s_df, 2)
 #print(pam.res)
 
+small_data_instances = sample(nrow(s_dfprog), 10000)
+small_data = s_dfprog[small_data_instances,]
+
 #https://towardsdatascience.com/clustering-on-mixed-type-data-8bbd0a2569c3
 #' Compute Gower distance
-gower_dist <- daisy(s_dfprog, metric = "gower")
+gower_dist <- daisy(small_data, metric = "gower")
 gower_mat <- as.matrix(gower_dist)#' Print most similar clients
 #' Print most similar clients
-s_dfprog[which(gower_mat == min(gower_mat[gower_mat != min(gower_mat)]), arr.ind = TRUE)[1, ], ]
+small_data[which(gower_mat == min(gower_mat[gower_mat != min(gower_mat)]), arr.ind = TRUE)[1, ], ]
 #' Print most dissimilar clients
-s_dfprog[which(gower_mat == max(gower_mat[gower_mat != max(gower_mat)]), arr.ind = TRUE)[1, ], ]
+small_data[which(gower_mat == max(gower_mat[gower_mat != max(gower_mat)]), arr.ind = TRUE)[1, ], ]
 
 #k silhoutette width
 sil_width <- c(NA)
-for(i in 2:30){  
+for(i in 2:10){  
   pam_fit <- pam(gower_dist, diss = TRUE, k = i)  
   sil_width[i] <- pam_fit$silinfo$avg.width  
 }
-plot(1:30, sil_width,
+plot(1:10, sil_width,
       xlab = "Number of clusters",
       ylab = "Silhouette Width")
-lines(1:30, sil_width)
+lines(1:10, sil_width)
 
 #clustering algorithm
 k <- 22
-pam_fit <- pam(gower_dist, diss = TRUE, k)
-pam_results <- s_dfprog
-  mutate(cluster = pam_fit$clustering) 
-  group_by(cluster)
-  do(the_summary = summary(.))
-pamres=pam_results$the_summary
-write.csv(pamres, file = "pamresults.csv")
+# pam_fit <- pam(gower_dist, diss = TRUE, k)
+# pam_results <- small_data
+#  mutate(cluster = pam_fit$clustering) 
+#  group_by(cluster)
+#  do(the_summary = summary(.))
+# pamres=pam_results$the_summary
+# write.csv(pamres, file = "pamresults.csv")
 
 #plot low dimensional embedding of high-dimensional data, distances or similarities
 #tsne_obj <- Rtsne(gower_dist, is_distance = TRUE)
@@ -157,17 +160,17 @@ write.csv(pamres, file = "pamresults.csv")
 
 
 #https://medium.com/@rumman1988/clustering-categorical-and-numerical-datatype-using-gower-distance-ab89b3aa90d9
-library(cluster)
-gower.dissimilarity.mtrx <- daisy(small_data, metric = c("gower"))
-dissimilarity.mtrx.csv.content = as.matrix(gower.dissimilarity.mtrx)
-write.table(dissimilarity.mtrx.csv.content,
-            'dissimilarity.mtrx.csv', 
-            row.names=FALSE, 
-            col.names=FALSE, 
-            sep=",")
-dist <- gower.dissimilarity.mtrx
-pamx <- pam(dist, 22)
-sil = silhouette (pamx$clustering, dist)
-plot(sil)
+#library(cluster)
+#gower.dissimilarity.mtrx <- daisy(small_data, metric = c("gower"))
+#dissimilarity.mtrx.csv.content = as.matrix(gower.dissimilarity.mtrx)
+#write.table(dissimilarity.mtrx.csv.content,
+#            'dissimilarity.mtrx.csv', 
+#            row.names=FALSE, 
+#            col.names=FALSE, 
+#            sep=",")
+#dist <- gower.dissimilarity.mtrx
+#pamx <- pam(dist, k)
+#sil = silhouette (pamx$clustering, dist)
+#plot(sil)
 
 

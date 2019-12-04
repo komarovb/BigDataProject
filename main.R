@@ -6,39 +6,10 @@
 # Features selection
 library(CORElearn)
 
-# Naive Bayes implementation:
-library(naivebayes) # https://github.com/majkamichal/naivebayes
-
-# Random forest implementation
-library(randomForest)
-
 # Useful aggregation & manipulation functions
 library(dplyr)
 
 # Useful functions --------------------------------------------
-
-# Taken from: https://blog.revolutionanalytics.com/2016/03/com_class_eval_metrics_r.html
-f1 <- function(df) {
-  diag = diag(df)
-  rowsums = apply(df, 1, sum)
-  colsums = apply(df, 2, sum)
-  diag[diag == 0] = 0.00001
-  
-  precision = diag / colsums 
-  recall = diag / rowsums 
-  f1 = 2 * precision * recall / (precision + recall) 
-  
-  return(f1)
-}
-
-# Produce top-2 accuracy
-top_n_accuracy <- function(x, top_accuracy) {
-  x = sort(x, decreasing=TRUE)
-  xs = x[1:top_accuracy]
-  labels = names(xs)
-  top_accuracy = array(labels)
-  return(top_accuracy)
-}
 
 # Transform grant
 transform_grant <- function(x) {
@@ -60,66 +31,6 @@ remove_columns <- function(df, columns_to_drop) {
   df = df[, col_names]
   df[] = lapply(df, function(x) if(is.factor(x)) factor(x) else x)  # TODO refactor!
   return(df)
-}
-
-# Custom application of the Naive Bayes method
-custom_naive_bayes <- function(tmp_df, percentage_train, laplace, n) {
-  # Predict: HOST_INSTITUTION_COUNTRY_CDE
-  # TODO remove after features selection will be implemented
-  tmp_df = remove_columns(tmp_df, c('STUDENT_ID', 'HOST_INSTITUTION_CDE', 'NUMB_YRS_HIGHER_EDUCAT_VALUE', 'STUDENT_SUBJECT_AREA_VALUE',
-                                  'STUDENT_STUDY_LEVEL_CDE', 
-                                  'STUDENT_AGE_VALUE', 'LENGTH_STUDY_PERIOD_VALUE', 'TOTAL_ECTS_CREDITS_AMT', 'STUDENT_GENDER_CDE',
-                                  'ECTS_CREDITS_STUDY_AMT', 'PREVIOUS_PARTICIPATION_CDE'))
-  
-  train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*percentage_train)
-  tmp = 1:nrow(tmp_df)
-  test_data_instances = setdiff(tmp, train_data_instances)
-  
-  train_data = tmp_df[train_data_instances,]
-  test_data = tmp_df[test_data_instances,]
-  
-  nb = naive_bayes(HOST_INSTITUTION_COUNTRY_CDE~., train_data, laplace = laplace)
-  
-  # home <- as.matrix(table(erasmushome))
-  # tmp = nb %class% test_data # Alternative option
-  # TODO refactor so that it calculates top - 3 probabilities straight away
-  if(n == 1) {
-    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "class", threshold = 0.5)
-    f1_score = f1(table(tmp, test_data$HOST_INSTITUTION_COUNTRY_CDE))
-    predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
-    correctly_classified = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
-    incorrectly_classified = nrow(predictions_mlr[predictions_mlr$predicted != predictions_mlr$actual, ])
-  } else if(n == 2) {
-    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
-    tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = n)
-    predictions_mlr = data.frame(top_1 = tmp[2,], top_2 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
-    correctly_classified = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) +
-      nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,])
-  }else if(n==3) {
-    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
-    tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = n)
-    predictions_mlr = data.frame(top_1 = tmp[3,], top_2 = tmp[2, ], top_3 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
-    correctly_classified = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) + 
-      nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,]) + 
-      nrow(predictions_mlr[predictions_mlr$top_3 == predictions_mlr$actual,])
-  } else {
-    correctly_classified = 0
-  }
-  # t2 = colnames(tmp2)[apply(tmp2,1,which.max)]
-  accuracy = (correctly_classified / nrow(test_data)) * 100
-  
-  cat(sprintf("Naive Bayes top-%d accuracy: %f%%\n\n", n, accuracy))
-  if(n == 1){
-    cat(sprintf("Naive Bayes F1 score: %f\n\n", mean(f1_score)))
-  }
-  
-  # tmp = as.matrix(table(tmp))
-  # tmp2 = as.matrix(table(test_data$HOST_INSTITUTION_COUNTRY_CDE))
-  # tmp = data.frame(predicted = tmp, actual = tmp2)
-  # tmp$actual_predicted = tmp$actual - tmp$predicted
-  # tmp[order(tmp$actual_predicted_actual),]
-  
-  return(accuracy)
 }
 
 # Useful functions end --------------------------------------------
@@ -206,6 +117,11 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
   s_df$LANGUAGE_TAUGHT_CDE = toupper(s_df$LANGUAGE_TAUGHT_CDE)
   s_df$LANGUAGE_TAUGHT_CDE = unlist(lapply(s_df$LANGUAGE_TAUGHT_CDE, as.factor))
   
+  # Study grant attribute normalization!
+  s_df$STUDY_GRANT_AMT = as.character(s_df$STUDY_GRANT_AMT)
+  s_df$STUDY_GRANT_AMT = lapply(s_df$STUDY_GRANT_AMT, transform_grant)
+  s_df$STUDY_GRANT_AMT = unlist(s_df$STUDY_GRANT_AMT)
+  
   print("----------Initial data preprocessing is OVER----------\n")
   # Checking program mode:
   #   * Classification - 0
@@ -213,10 +129,24 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
   #   * Descriptive analytics - 2
   if(program_mode == 0) {
     print("----------Starting classification----------")
+    source('./classification.R')
+    
+    print("----------Data preprocessing was started----------")
+    target = s_df$HOST_INSTITUTION_COUNTRY_CDE
+    # Removing HOST_INSTITUTION_CDE attribute which has a direct correlatio with the target variable
+    s_df = remove_columns(s_df, c('HOST_INSTITUTION_COUNTRY_CDE', 'HOST_INSTITUTION_CDE'))
+    s_df$HOST_INSTITUTION_COUNTRY_CDE = target
+    
+    print("----------Data preprocessing is over----------")
     if(classification_method == 0) {
       # Classification using Naive Bayes method
+      percentage_train = 0.7
+      laplace = 0.5
+      accuracy = custom_naive_bayes(s_df, train_percentage, 0.5)
     } else if(classification_method == 1) {
       # Classification using Random Forest method
+      s_df = remove_columns(s_df, c('HOME_INSTITUTION_CDE'))
+      
     } else {
       cat(sprintf("\nUnknown value for classification_method parameter: %d\n", classification_method))
     }

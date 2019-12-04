@@ -114,7 +114,7 @@ best_feature <- function (test_data, train_data, features, selected_features, cl
 }
 
 # The function takes one argument
-# *data - name of the .csv file containing the dataset
+# *data - dataset with the last column as a target variable
 #
 # The function prints to console the set of important features
 sfs <- function(data) {
@@ -324,24 +324,31 @@ train_percentage = 0.7
 # feature_gain = attrEval(HOST_INSTITUTION_COUNTRY_CDE~., tmp_df,  estimator = "InfGain")
 
 # Features selection
-target = s_df$HOST_INSTITUTION_COUNTRY_CDE
-s_df = remove_columns(s_df, c('HOST_INSTITUTION_COUNTRY_CDE', 'HOST_INSTITUTION_CDE'))
-s_df$HOST_INSTITUTION_COUNTRY_CDE = target
+#target = s_df$HOST_INSTITUTION_COUNTRY_CDE
+#s_df = remove_columns(s_df, c('HOST_INSTITUTION_COUNTRY_CDE', 'HOST_INSTITUTION_CDE'))
+#s_df$HOST_INSTITUTION_COUNTRY_CDE = target
 
-selected_features = sfs(s_df)
-s_df = s_df[selected_features]
-s_df$HOST_INSTITUTION_COUNTRY_CDE = target
+#selected_features = sfs(s_df)
+#s_df = s_df[selected_features]
+#s_df$HOST_INSTITUTION_COUNTRY_CDE = target
 
 
 # Naive Bayes
-accuracy = custom_naive_bayes(s_df, train_percentage, 0.5)
+# accuracy = custom_naive_bayes(s_df, train_percentage, 0.5)
 
-implement_rf = FALSE;
+implement_rf = TRUE;
 
 if(implement_rf) {
   # Random forest implementation: https://www.stat.berkeley.edu/~breiman/RandomForests/
-  tmp_df = remove_columns(s_df, c('STUDENT_ID', 'HOME_INSTITUTION_CDE', 'HOST_INSTITUTION_CDE', 'NUMB_YRS_HIGHER_EDUCAT_VALUE', 'STUDENT_SUBJECT_AREA_VALUE',
-                                  'STUDENT_STUDY_LEVEL_CDE', 'LANGUAGE_TAUGHT_CDE'))
+  tmp_df = remove_columns(s_df, c('HOME_INSTITUTION_CDE'))
+  
+  target = tmp_df$HOST_INSTITUTION_COUNTRY_CDE
+  tmp_df = remove_columns(tmp_df, c('HOST_INSTITUTION_COUNTRY_CDE', 'HOST_INSTITUTION_CDE'))
+  tmp_df$HOST_INSTITUTION_COUNTRY_CDE = target
+  
+  selected_features = sfs(tmp_df)
+  tmp_df = tmp_df[selected_features]
+  tmp_df$HOST_INSTITUTION_COUNTRY_CDE = target
   
   train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*0.7)
   tmp = 1:nrow(tmp_df)
@@ -351,7 +358,7 @@ if(implement_rf) {
   
   
   start_time = Sys.time()
-  rf <- randomForest(HOST_INSTITUTION_COUNTRY_CDE~., data = train_data, ntree = 500, mtry = 6, importance = TRUE)
+  rf <- randomForest(HOST_INSTITUTION_COUNTRY_CDE~., data = train_data, ntree = 200, mtry = 4, importance = TRUE)
   end_time = Sys.time()
   
   cat(sprintf("Random Forest was built in: %f\n\n", end_time - start_time))

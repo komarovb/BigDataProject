@@ -135,6 +135,7 @@ custom_naive_bayes <- function(tmp_df, percentage_train, laplace) {
   cat(sprintf("----------Starting Naive Bayes classifier!----------\n"))
   
   # Features selection
+  target = tmp_df$HOST_INSTITUTION_COUNTRY_CDE
   selected_features = sfs(tmp_df)
   tmp_df = tmp_df[selected_features]
   tmp_df$HOST_INSTITUTION_COUNTRY_CDE = target
@@ -182,13 +183,13 @@ custom_naive_bayes <- function(tmp_df, percentage_train, laplace) {
   cat(sprintf("Naive Bayes top-3 accuracy: %f%%\n\n", accuracy3))
   
   cat(sprintf("----------Naive Bayes classifier work is over!----------\n"))
-  return(accuracy)
 }
 
 custom_random_forest <- function(tmp_df, number_of_trees = 200, mtry = 4, percentage_train = 0.7) {
   cat(sprintf("----------Starting Random Forest classifier!----------\n"))
   
   # Features selection
+  target = tmp_df$HOST_INSTITUTION_COUNTRY_CDE
   selected_features = sfs(tmp_df)
   tmp_df = tmp_df[selected_features]
   tmp_df$HOST_INSTITUTION_COUNTRY_CDE = target

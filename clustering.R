@@ -8,7 +8,7 @@
 # Useful aggregation & manipulation functions
 library(dplyr)
 
-clustering <- function(tmp_df, k = 3) {
+clustering <- function(s_df, k = 3) {
   cat(sprintf("----------Starting clustering!----------\n"))
   # FOR CLUSTERING
   # Create a separate table with summary information about Host universities

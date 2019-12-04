@@ -142,7 +142,7 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
       # Classification using Naive Bayes method
       percentage_train = 0.7
       laplace = 0.5
-      accuracy = custom_naive_bayes(s_df, train_percentage, 0.5)
+      accuracy = custom_naive_bayes(s_df, percentage_train, 0.5)
     } else if(classification_method == 1) {
       s_df = remove_columns(s_df, c('HOME_INSTITUTION_CDE'))
       # Classification using Random Forest method

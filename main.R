@@ -63,7 +63,7 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
   
   print("----------Starting initial data preprocessing----------")
   # Remove unnecessary attributes
-  drop_for_all = c('ID_MOBILITY_CDE', 'STUDENT_ID',
+  drop_for_all = c('ID_MOBILITY_CDE',
                    'CONSORTIUM_AGREEMENT_NUMBER', 'SPECIAL_NEEDS_SUPPLEMENT_VALUE', 
                    'SHORT_DURATION_CDE', 'QUALIFICATION_AT_HOST_CDE')
   df = remove_columns(df, drop_for_all)
@@ -134,7 +134,7 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
     print("----------Data preprocessing was started----------")
     target = s_df$HOST_INSTITUTION_COUNTRY_CDE
     # Removing HOST_INSTITUTION_CDE attribute which has a direct correlatio with the target variable
-    s_df = remove_columns(s_df, c('HOST_INSTITUTION_COUNTRY_CDE', 'HOST_INSTITUTION_CDE'))
+    s_df = remove_columns(s_df, c('HOST_INSTITUTION_COUNTRY_CDE', 'HOST_INSTITUTION_CDE', 'STUDENT_ID'))
     s_df$HOST_INSTITUTION_COUNTRY_CDE = target
     
     print("----------Data preprocessing is over----------")

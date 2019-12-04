@@ -161,7 +161,8 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
       # Performing clustering on data
       # Detailed explanation of clustering strategy is present in the report
       print("----------Starting clustering----------")
-      
+      source('./clustering.R')
+      clustering(s_df)
       print("----------Clustering is over!----------")
     }
   } else if(program_mode == 2) {

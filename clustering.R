@@ -49,7 +49,9 @@ clustering <- function(tmp_df, k = 3) {
  
   # Backing up the resulting dataset
   write.csv(tmp_results, file = 'clustering_data.csv', row.names = FALSE)
- 
-  # Call k-medoids function here
+  
+  df = tmp_results
+  # Call k-medoids function and perform clustering here
+  
   cat(sprintf("----------Clustering is done!----------\n"))
 }

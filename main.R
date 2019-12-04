@@ -2,9 +2,9 @@
 #
 # Anna Dieckvoss - 1127324
 # Borys Komarov - 0889421
+#
+# Please use run_program function to run the program!
 
-# Features selection
-library(CORElearn)
 
 # Useful aggregation & manipulation functions
 library(dplyr)
@@ -144,9 +144,12 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
       laplace = 0.5
       accuracy = custom_naive_bayes(s_df, train_percentage, 0.5)
     } else if(classification_method == 1) {
-      # Classification using Random Forest method
       s_df = remove_columns(s_df, c('HOME_INSTITUTION_CDE'))
-      
+      # Classification using Random Forest method
+      number_of_trees = 200
+      mtry = 4
+      percentage_train = 0.7
+      custom_random_forest(s_df, number_of_trees = number_of_trees, mtry = mtry, percentage_train = percentage_train)
     } else {
       cat(sprintf("\nUnknown value for classification_method parameter: %d\n", classification_method))
     }
@@ -154,11 +157,12 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
   } else if(program_mode == 1) {
     if(k < 1 || k > nrow(s_df)) {
       cat(sprintf("\nValue for k is out of bounds! k = %d\n", k))
-      print("----------Starting clustering----------")
-      print("----------Clustering is over!----------")
     } else {
       # Performing clustering on data
       # Detailed explanation of clustering strategy is present in the report
+      print("----------Starting clustering----------")
+      
+      print("----------Clustering is over!----------")
     }
   } else if(program_mode == 2) {
     print("----------Starting descriptive analytics----------")

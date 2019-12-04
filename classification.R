@@ -132,7 +132,7 @@ sfs <- function(data) {
 # All the data preprocessing should be done beforehand!
 custom_naive_bayes <- function(tmp_df, percentage_train, laplace) {
   # Predict: HOST_INSTITUTION_COUNTRY_CDE
-  print("----------Starting Naive Bayes classifier!----------")
+  cat(sprintf("----------Starting Naive Bayes classifier!----------\n"))
   
   # Features selection
   selected_features = sfs(tmp_df)
@@ -181,12 +181,12 @@ custom_naive_bayes <- function(tmp_df, percentage_train, laplace) {
   cat(sprintf("Naive Bayes top-2 accuracy: %f%%\n\n", accuracy2))
   cat(sprintf("Naive Bayes top-3 accuracy: %f%%\n\n", accuracy3))
   
-  print("----------Naive Bayes classifier work is over!----------")
+  cat(sprintf("----------Naive Bayes classifier work is over!----------\n"))
   return(accuracy)
 }
 
 custom_random_forest <- function(tmp_df, number_of_trees = 200, mtry = 4, percentage_train = 0.7) {
-  print("----------Starting Random Forest classifier!----------")
+  cat(sprintf("----------Starting Random Forest classifier!----------\n"))
   
   # Features selection
   selected_features = sfs(tmp_df)
@@ -206,15 +206,33 @@ custom_random_forest <- function(tmp_df, number_of_trees = 200, mtry = 4, percen
   
   cat(sprintf("Random Forest was built in: %f\n\n", end_time - start_time))
   
-  # TODO Add top accuracy calculations
-  tmp <- predict(rf, test_data, type = "class")
+  tmp = predict(rf, test_data, type = "class")
   f1_score = f1(table(tmp, test_data$HOST_INSTITUTION_COUNTRY_CDE))
   predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
-  correctly_classified = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
-  accuracy = (correctly_classified / nrow(test_data)) * 100
-  cat(sprintf("Random Forest accuracy: %f%%\n\n", accuracy))
+  correctly_classified1 = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
+  
+  tmp = predict(rf, test_data, type = "prob")
+  tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = 2)
+  predictions_mlr = data.frame(top_1 = tmp[2,], top_2 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE, stringsAsFactors = FALSE)
+  correctly_classified2 = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) +
+    nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,])
+  
+  tmp = predict(rf, test_data, type = "prob")
+  tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = 3)
+  predictions_mlr = data.frame(top_1 = tmp[3,], top_2 = tmp[2, ], top_3 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE, stringsAsFactors = FALSE)
+  correctly_classified3 = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) + 
+    nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,]) + 
+    nrow(predictions_mlr[predictions_mlr$top_3 == predictions_mlr$actual,])
+  
+  accuracy1 = (correctly_classified1 / nrow(test_data)) * 100
+  accuracy2 = (correctly_classified2 / nrow(test_data)) * 100
+  accuracy3 = (correctly_classified3 / nrow(test_data)) * 100
+  
+  cat(sprintf("Random Forest top-1 accuracy: %f%%\n\n", accuracy1))
   cat(sprintf("Random Forest F1 score: %f\n\n", mean(f1_score)))
-  print("----------Random Forest classifier work is over!----------")
+  cat(sprintf("Random Forest top-2 accuracy: %f%%\n\n", accuracy2))
+  cat(sprintf("Random Forest top-3 accuracy: %f%%\n\n", accuracy3))
+  cat(sprintf("----------Random Forest classifier work is over!----------\n"))
 }
 
 

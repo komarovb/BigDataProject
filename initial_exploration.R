@@ -45,6 +45,8 @@ f1 <- function(df) {
   rowsums = apply(df, 1, sum)
   colsums = apply(df, 2, sum)
   diag[diag == 0] = 0.00001
+  rowsums[rowsums == 0] = 0.00001
+  colsums[colsums == 0] = 0.00001
   
   precision = diag / colsums 
   recall = diag / rowsums 
@@ -84,13 +86,102 @@ remove_columns <- function(df, columns_to_drop) {
   return(df)
 }
 
+# Functions which finds the accuracies for features for given test and train data
+best_feature <- function (test_data, train_data, features, selected_features, class_variable) {
+  accuracies = array(0, ncol(train_data) -1)
+  # Find the best feature using accuracy measurments - ML algo
+  for(i in features) {
+    col_name = colnames(train_data)[i]
+    tmp_selected_features = c(selected_features, i)
+    tmp = colnames(train_data)[tmp_selected_features]
+    
+    # Trick to make formula more dynamic, inspired by:
+    # http://www.win-vector.com/blog/2018/09/r-tip-how-to-pass-a-formula-to-lm/
+    resulting_varialbe = colnames(train_data)[class_variable]
+    variables = c('.')
+    f <- as.formula(paste(resulting_varialbe, paste(variables, collapse = " + "), sep = " ~ "))
+    
+    nb = naivebayes::naive_bayes(f, train_data[,c(tmp, colnames(train_data[class_variable]))], laplace = 0.5)
+    
+    predicted = predict(nb, test_data[ , tmp, drop=FALSE], type = "class", threshold = 0.5)
+    predictions_mlr = data.frame(predicted = predicted, actual = test_data[[class_variable]])
+    correctly_classified = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
+    
+    accuracies[i] = (correctly_classified / nrow(test_data)) * 100
+  }
+  
+  return(accuracies)
+}
+
+# The function takes one argument
+# *data - name of the .csv file containing the dataset
+#
+# The function prints to console the set of important features
+sfs <- function(data) {
+  cat(sprintf("Starting Sequential Forwards Selection algorithm for dataset\n\n"))
+  
+  df = data
+  class_variable = ncol(df)
+  current_accuracy = 0
+  accuracy_gain = 1
+  features = 1:(ncol(df)-1)
+  selected_features = c()
+  # The algorithm would run until we stop improving the performance
+  while (accuracy_gain > 0){
+    accuracy_gain = 0
+    
+    best_features_per_fold = c()
+    best_accuracies_per_fold = c()
+    # Iterate through splits taking 1 fold as test and remaining as train
+    for(k in 1:5) {
+      instances_per_fold = ceiling(nrow(df) / 5)
+      
+      # Randomly permute data
+      df<-df[sample(nrow(df)),]
+      #Select testing instances
+      test_instances = ((k-1)*instances_per_fold):(k*instances_per_fold)
+      tmp = 1:nrow(df)
+      train_instances = setdiff(tmp, test_instances)
+      
+      test_data = df[test_instances,]
+      train_data = df[train_instances,]
+      
+      # Get accuracies for current fold
+      accuracies = best_feature(test_data, train_data, features, selected_features, class_variable)
+      # Select best feature and add to the array
+      best_feature = which.max(accuracies)
+      best_accuracy = accuracies[best_feature]
+      
+      best_features_per_fold[k] = best_feature
+      best_accuracies_per_fold[k] = best_accuracy
+    }
+    
+    # Select best accuracy
+    # best_feature = best_features_per_fold[which.max(best_accuracies_per_fold)]
+    best_feature = as.numeric(names(which.max(table(best_features_per_fold))))
+    best_accuracy = as.numeric(names(which.max(table(best_accuracies_per_fold))))
+    
+    selected_features = c(selected_features, best_feature)
+    
+    # Remove best feature from features
+    features = features[!features %in% best_feature]
+    
+    # Assign new accuracy
+    new_accuracy = best_accuracy
+    accuracy_gain = new_accuracy - current_accuracy
+    current_accuracy = new_accuracy
+  }
+  cat(sprintf("Best features:\n"))
+  print(colnames(df[selected_features]))
+  cat(sprintf("\nSequential Forwards Selection execution finished, please see results in console above\n\n"))
+  
+  return(colnames(df[selected_features]))
+}
+
 # Custom application of the Naive Bayes method
-custom_naive_bayes <- function(tmp_df, percentage_train, laplace, n) {
+# All the data preprocessing should be done beforehand!
+custom_naive_bayes <- function(tmp_df, percentage_train, laplace) {
   # Predict: HOST_INSTITUTION_COUNTRY_CDE
-  tmp_df = remove_columns(s_df, c('STUDENT_ID', 'HOST_INSTITUTION_CDE', 'NUMB_YRS_HIGHER_EDUCAT_VALUE', 'STUDENT_SUBJECT_AREA_VALUE',
-                                  'STUDENT_STUDY_LEVEL_CDE', 
-                                  'STUDENT_AGE_VALUE', 'LENGTH_STUDY_PERIOD_VALUE', 'TOTAL_ECTS_CREDITS_AMT', 'STUDENT_GENDER_CDE',
-                                  'ECTS_CREDITS_STUDY_AMT', 'PREVIOUS_PARTICIPATION_CDE'))
   
   train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*percentage_train)
   tmp = 1:nrow(tmp_df)
@@ -104,41 +195,35 @@ custom_naive_bayes <- function(tmp_df, percentage_train, laplace, n) {
   # home <- as.matrix(table(erasmushome))
   # tmp = nb %class% test_data # Alternative option
   # TODO refactor so that it calculates top - 3 probabilities straight away
-  if(n == 1) {
-    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "class", threshold = 0.5)
-    f1_score = f1(table(tmp, test_data$HOST_INSTITUTION_COUNTRY_CDE))
-    predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
-    correctly_classified = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
-    incorrectly_classified = nrow(predictions_mlr[predictions_mlr$predicted != predictions_mlr$actual, ])
-  } else if(n == 2) {
-    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
-    tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = n)
-    predictions_mlr = data.frame(top_1 = tmp[2,], top_2 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
-    correctly_classified = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) +
-                                                         nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,])
-  }else if(n==3) {
-    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
-    tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = n)
-    predictions_mlr = data.frame(top_1 = tmp[3,], top_2 = tmp[2, ], top_3 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
-    correctly_classified = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) + 
-      nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,]) + 
-      nrow(predictions_mlr[predictions_mlr$top_3 == predictions_mlr$actual,])
-  } else {
-    correctly_classified = 0
-  }
+  
+  tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "class", threshold = 0.5)
+  f1_score = f1(table(tmp, test_data$HOST_INSTITUTION_COUNTRY_CDE))
+  predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
+  correctly_classified1 = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
+  incorrectly_classified = nrow(predictions_mlr[predictions_mlr$predicted != predictions_mlr$actual, ])
+
+  tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
+  tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = 2)
+  predictions_mlr = data.frame(top_1 = tmp[2,], top_2 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE, stringsAsFactors = FALSE)
+  correctly_classified2 = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) +
+                                                       nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,])
+
+  tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
+  tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = 3)
+  predictions_mlr = data.frame(top_1 = tmp[3,], top_2 = tmp[2, ], top_3 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE, stringsAsFactors = FALSE)
+  correctly_classified3 = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) + 
+    nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,]) + 
+    nrow(predictions_mlr[predictions_mlr$top_3 == predictions_mlr$actual,])
+  
   # t2 = colnames(tmp2)[apply(tmp2,1,which.max)]
-  accuracy = (correctly_classified / nrow(test_data)) * 100
+  accuracy1 = (correctly_classified1 / nrow(test_data)) * 100
+  accuracy2 = (correctly_classified2 / nrow(test_data)) * 100
+  accuracy3 = (correctly_classified3 / nrow(test_data)) * 100
   
-  cat(sprintf("Naive Bayes top-%d accuracy: %f%%\n\n", n, accuracy))
-  if(n == 1){
-    cat(sprintf("Naive Bayes F1 score: %f\n\n", mean(f1_score)))
-  }
-  
-  # tmp = as.matrix(table(tmp))
-  # tmp2 = as.matrix(table(test_data$HOST_INSTITUTION_COUNTRY_CDE))
-  # tmp = data.frame(predicted = tmp, actual = tmp2)
-  # tmp$actual_predicted = tmp$actual - tmp$predicted
-  # tmp[order(tmp$actual_predicted_actual),]
+  cat(sprintf("Naive Bayes top-1 accuracy: %f%%\n\n", accuracy1))
+  cat(sprintf("Naive Bayes F1 score: %f\n\n", mean(f1_score)))
+  cat(sprintf("Naive Bayes top-2 accuracy: %f%%\n\n", accuracy2))
+  cat(sprintf("Naive Bayes top-3 accuracy: %f%%\n\n", accuracy3))
   
   return(accuracy)
 }
@@ -149,7 +234,7 @@ df = read.csv("data/SM_2012_13_20141103_01.csv", header = TRUE, sep = ';') # Rea
 # Filter unnecessary attributes based on the data structure for each type of placement
 # Remove for all:
 # ID_MOBILITY_CDE, CONSORTIUM_AGREEMENT_NUMBER, SPECIAL_NEEDS_SUPPLEMENT_VALUE, 
-drop_for_all = c('ID_MOBILITY_CDE', 
+drop_for_all = c('ID_MOBILITY_CDE', 'STUDENT_ID',
                  'CONSORTIUM_AGREEMENT_NUMBER', 'SPECIAL_NEEDS_SUPPLEMENT_VALUE', 
                  'SHORT_DURATION_CDE', 'QUALIFICATION_AT_HOST_CDE')
 
@@ -198,8 +283,13 @@ missing_values_per_feature = c()
 for (i in 1:length(colums_to_check))
 {
   col = colums_to_check[i]
-  number_of_missing_values = nrow(s_df[s_df[[col]] %in% missing_values, col])
+  number_of_missing_values = nrow(s_df[s_df[[col]] %in% missing_values,])
   missing_values_per_feature[i] = number_of_missing_values
+}
+
+if(max(missing_values_per_feature) > 0) {
+  cat(sprintf("\nWARNING: Some missing values are present\n"))
+  print(missing_values_per_feature)
 }
 
 # Mapping Belgium from 3 into 1 country
@@ -215,6 +305,17 @@ s_df$HOST_INSTITUTION_COUNTRY_CDE[s_df$HOST_INSTITUTION_COUNTRY_CDE == 'BENL'] =
 s_df$HOST_INSTITUTION_COUNTRY_CDE[s_df$HOST_INSTITUTION_COUNTRY_CDE == 'BEFR'] = "BE"
 s_df$HOST_INSTITUTION_COUNTRY_CDE = unlist(lapply(s_df$HOST_INSTITUTION_COUNTRY_CDE, as.factor))
 
+# Mapping Languages properly
+s_df$LANGUAGE_TAUGHT_CDE = unlist(lapply(s_df$LANGUAGE_TAUGHT_CDE, as.character))
+s_df$LANGUAGE_TAUGHT_CDE = toupper(s_df$LANGUAGE_TAUGHT_CDE)
+s_df$LANGUAGE_TAUGHT_CDE = unlist(lapply(s_df$LANGUAGE_TAUGHT_CDE, as.factor))
+
+# Update study grant Amt!
+s_df$STUDY_GRANT_AMT = as.character(s_df$STUDY_GRANT_AMT)
+s_df$STUDY_GRANT_AMT = lapply(s_df$STUDY_GRANT_AMT, transform_grant)
+s_df$STUDY_GRANT_AMT = unlist(s_df$STUDY_GRANT_AMT)
+
+
 train_percentage = 0.7
 
 # tmp = table(s_df$HOST_INSTITUTION_COUNTRY_CDE)
@@ -222,15 +323,18 @@ train_percentage = 0.7
 # INFORMATION GAIN
 # feature_gain = attrEval(HOST_INSTITUTION_COUNTRY_CDE~., tmp_df,  estimator = "InfGain")
 
-# Naive Bayes
-accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 1)
-# accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 2)
-# accuracy = custom_naive_bayes(s_df, train_percentage, 0.5, 3)
+# Features selection
+target = s_df$HOST_INSTITUTION_COUNTRY_CDE
+s_df = remove_columns(s_df, c('HOST_INSTITUTION_COUNTRY_CDE', 'HOST_INSTITUTION_CDE'))
+s_df$HOST_INSTITUTION_COUNTRY_CDE = target
 
-# Update study grant Amt!
-s_df$STUDY_GRANT_AMT = as.character(s_df$STUDY_GRANT_AMT)
-s_df$STUDY_GRANT_AMT = lapply(s_df$STUDY_GRANT_AMT, transform_grant)
-s_df$STUDY_GRANT_AMT = unlist(s_df$STUDY_GRANT_AMT)
+selected_features = sfs(s_df)
+s_df = s_df[selected_features]
+s_df$HOST_INSTITUTION_COUNTRY_CDE = target
+
+
+# Naive Bayes
+accuracy = custom_naive_bayes(s_df, train_percentage, 0.5)
 
 implement_rf = FALSE;
 
@@ -265,13 +369,6 @@ if(implement_rf) {
 # predictions_mlr[] <- lapply(predictions_mlr, as.character)
 
 # ------------------------------
-
-# TODO before presentation:
-# Do basic feature selection! 17.11.2019 +
-# Deal with missing values 11.11.2019 - 18.11.2019 +
-
-# Implement multiple scenarious of clustering 18.11.2019
-# Implement some kind of classification / regression 18.11.2019 +
 
 # He will ask how we handle missing values
 # Overfitting and feature selection

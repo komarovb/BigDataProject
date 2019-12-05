@@ -7,6 +7,8 @@
 
 # Useful aggregation & manipulation functions
 library(dplyr)
+library(cluster)
+library(factoextra)
 
 clustering <- function(s_df, k = 3) {
   cat(sprintf("----------Starting clustering!----------\n"))
@@ -46,12 +48,16 @@ clustering <- function(s_df, k = 3) {
   tmp_results$SUBJECTS_TAUGHT = subjects_per_uni
   tmp_results$STUDENTS_ARRIVED = students_per_university
   tmp_results$CONNECTED_UNIVERSITIES = connected_universities
- 
-  # Backing up the resulting dataset
-  write.csv(tmp_results, file = 'clustering_data.csv', row.names = FALSE)
   
   df = tmp_results
-  # Call k-medoids function and perform clustering here
+  
+  # Backing up the resulting dataset
+  write.csv(df, file = 'clustering_data.csv', row.names = FALSE)
+  
+  #The average silhouette measures the quality of a clustering
+  #fviz_nbclust(df,pam, method = c("silhouette"))
+  
+  
   
   cat(sprintf("----------Clustering is done!----------\n"))
 }

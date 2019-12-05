@@ -15,6 +15,8 @@ for (i in colnames(Data_n)){
   Data_n[,i]=normalize(Data_n[,i])
 }
 
+Data_n = Data_n[,c("CONNECTED_UNIVERSITIES", "LANGUAGES_TAUGHT", "SUBJECTS_TAUGHT", "STUDENTS_ARRIVED", "STUDY_LENGTH")]
+
 #optimal number of clusters- calculating silhoutette width
 #The average silhouette measures the quality of a clustering
 fviz_nbclust(Data_n,pam, method = c("silhouette"))

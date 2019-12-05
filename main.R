@@ -29,7 +29,7 @@ remove_columns <- function(df, columns_to_drop) {
   col_names = colnames(df)
   col_names = col_names[! col_names %in% columns_to_drop]
   df = df[, col_names]
-  df[] = lapply(df, function(x) if(is.factor(x)) factor(x) else x)  # TODO refactor!
+  df[] = lapply(df, function(x) if(is.factor(x)) factor(x) else x)
   return(df)
 }
 
@@ -55,7 +55,7 @@ remove_columns <- function(df, columns_to_drop) {
 #   * classification_method - (Only if program_mode = 0)
 #   * k - hyperparameter used in k-medoids algorithm
 
-run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
+run_program <- function(program_mode = 0, classification_method = 0, k = 2) {
   # Main flow of the program --------------------------------------------
   print("----------Project main script execution----------")
   df = read.csv("data/SM_2012_13_20141103_01.csv", header = TRUE, sep = ';') # Reading the whole data
@@ -148,7 +148,7 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
       number_of_trees = 300
       mtry = 3
       percentage_train = 0.7
-      with_balancing = TRUE
+      with_balancing = FALSE
       custom_random_forest(s_df, number_of_trees = number_of_trees, mtry = mtry, percentage_train = percentage_train, with_balancing = with_balancing)
     } else {
       cat(sprintf("\nUnknown value for classification_method parameter: %d\n", classification_method))

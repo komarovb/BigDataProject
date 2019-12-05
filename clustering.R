@@ -34,7 +34,6 @@ clustering <- function(s_df, k = 3) {
   average_ects = aggregate(ECTS_CREDITS_STUDY_AMT ~ HOST_INSTITUTION_CDE, s_df, mean)
   #   * Average/median (TO DECIDE) length of the program per university LENGTH_STUDY_PERIOD_VALUE
   average_length = aggregate(LENGTH_STUDY_PERIOD_VALUE ~ HOST_INSTITUTION_CDE, s_df, mean)
-  #   * Percentage of people who failed the program, proportion (failed / total) per university
   
   # Packing up descriptive analytics results into a new data frame
   tmp_results = median_age

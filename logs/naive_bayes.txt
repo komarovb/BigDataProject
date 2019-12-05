@@ -1,0 +1,21 @@
+Run 1
+Naive Bayes top-1 accuracy: 58.707353%Naive Bayes F1 score: 0.342117Naive Bayes top-2 accuracy: 69.322970%Naive Bayes top-3 accuracy: 74.972524%
+
+Run 2
+Naive Bayes top-1 accuracy: 58.735183%Naive Bayes F1 score: 0.334584Naive Bayes top-2 accuracy: 69.231931%Naive Bayes top-3 accuracy: 74.931486%
+
+Run 3
+Naive Bayes top-1 accuracy: 58.743674%Naive Bayes F1 score: 0.335389Naive Bayes top-2 accuracy: 69.274384%Naive Bayes top-3 accuracy: 74.975354%
+
+
+
+WITH BALANCING
+Run1
+Naive Bayes top-1 accuracy: 51.342693% AVERAGE: 51.37Naive Bayes F1 score: 0.291045		AVERAGE: 0.294Naive Bayes top-2 accuracy: 62.445575% 	AVERAGE: 62.54Naive Bayes top-3 accuracy: 68.570605% 	AVERAGE: 68.68
+ 
+Run2
+Naive Bayes top-1 accuracy: 51.410618%Naive Bayes F1 score: 0.295888Naive Bayes top-2 accuracy: 62.585673%Naive Bayes top-3 accuracy: 68.731929%
+
+Run3
+Naive Bayes top-1 accuracy: 51.384675%Naive Bayes F1 score: 0.298404Naive Bayes top-2 accuracy: 62.627184%Naive Bayes top-3 accuracy: 68.760233%
+

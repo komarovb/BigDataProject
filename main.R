@@ -142,11 +142,12 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
       # Classification using Naive Bayes method
       percentage_train = 0.7
       laplace = 0.5
-      accuracy = custom_naive_bayes(s_df, percentage_train, 0.5)
+      with_balancing = TRUE
+      accuracy = custom_naive_bayes(s_df, percentage_train, 0.5, with_balancing = with_balancing)
     } else if(classification_method == 1) {
       s_df = remove_columns(s_df, c('HOME_INSTITUTION_CDE'))
       # Classification using Random Forest method
-      number_of_trees = 200
+      number_of_trees = 300
       mtry = 4
       percentage_train = 0.7
       custom_random_forest(s_df, number_of_trees = number_of_trees, mtry = mtry, percentage_train = percentage_train)

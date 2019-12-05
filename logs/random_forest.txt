@@ -1,0 +1,8 @@
+Run 1
+Random Forest top-1 accuracy: 58.123555%Random Forest F1 score: 0.310031Random Forest top-2 accuracy: 63.411374%Random Forest top-3 accuracy: 66.334376%
+
+Run 2
+
+
+Run 3
+

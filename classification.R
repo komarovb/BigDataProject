@@ -137,14 +137,16 @@ balance_classes <- function(s_df) {
   cat(sprintf("----------Number of instances in top 10 classes: %d----------\n", sum(top10)))
   cat(sprintf("----------Number of instances in bottom 10 classes: %d----------\n", sum(bottom10)))
   
-  under_represented_instances = s_df[s_df$HOST_INSTITUTION_COUNTRY_CDE %in% names(bottom10),]
-  number_of_instances_to_take = sample(nrow(under_represented_instances), nrow(under_represented_instances)*2, replace = TRUE)
-  to_add = under_represented_instances[number_of_instances_to_take,]
-  rownames(to_add) = NULL
-  s_df = rbind(s_df, to_add)
+  for(i in 1:length(bottom10)) {
+    under_represented_instances = s_df[s_df$HOST_INSTITUTION_COUNTRY_CDE %in% names(bottom10[i]),]
+    number_of_instances_to_take = sample(nrow(under_represented_instances), nrow(under_represented_instances)*3, replace = TRUE)
+    to_add = under_represented_instances[number_of_instances_to_take,]
+    rownames(to_add) = NULL
+    s_df = rbind(s_df, to_add)
+  }
   
   over_represented_instances = s_df[s_df$HOST_INSTITUTION_COUNTRY_CDE %in% names(top10),]
-  number_of_instances_to_take = sample(nrow(over_represented_instances), nrow(over_represented_instances)*0.3)
+  number_of_instances_to_take = sample(nrow(over_represented_instances), nrow(over_represented_instances)*0.5)
   to_remove = over_represented_instances[number_of_instances_to_take,]
   to_remove = as.numeric(rownames(to_remove))
   s_df = s_df[-to_remove,]
@@ -155,7 +157,7 @@ balance_classes <- function(s_df) {
 
 # Custom application of the Naive Bayes method
 # All the data preprocessing should be done beforehand!
-custom_naive_bayes <- function(tmp_df, percentage_train, laplace) {
+custom_naive_bayes <- function(tmp_df, percentage_train, laplace, with_balancing=FALSE) {
   # Predict: HOST_INSTITUTION_COUNTRY_CDE
   cat(sprintf("----------Starting Naive Bayes classifier!----------\n"))
   
@@ -165,54 +167,68 @@ custom_naive_bayes <- function(tmp_df, percentage_train, laplace) {
   tmp_df = tmp_df[selected_features]
   tmp_df$HOST_INSTITUTION_COUNTRY_CDE = target
   
-  train_data_instances = sample(nrow(tmp_df), nrow(tmp_df)*percentage_train)
-  tmp = 1:nrow(tmp_df)
-  test_data_instances = setdiff(tmp, train_data_instances)
+  accuracies1 = c()
+  accuracies2 = c()
+  accuracies3 = c()
+  # Randomly permute data
+  tmp_df<-tmp_df[sample(nrow(tmp_df)),]
+  for(k in 1:5) {
+    instances_per_fold = ceiling(nrow(tmp_df) / 5)
+    
+    #Select testing instances
+    test_instances = ((k-1)*instances_per_fold):(k*instances_per_fold)
+    tmp = 1:nrow(tmp_df)
+    train_instances = setdiff(tmp, test_instances)
+    
+    test_data = tmp_df[test_instances,]
+    train_data = tmp_df[train_instances,]
+    if(with_balancing) {
+      train_data = balance_classes(train_data)
+      train_data = balance_classes(train_data)
+      train_data = balance_classes(train_data)
+    }
+    
+    nb = naive_bayes(HOST_INSTITUTION_COUNTRY_CDE~., train_data, laplace = laplace)
+    
+    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "class", threshold = 0.5)
+    f1_score = f1(table(tmp, test_data$HOST_INSTITUTION_COUNTRY_CDE))
+    predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
+    correctly_classified1 = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
+    incorrectly_classified = nrow(predictions_mlr[predictions_mlr$predicted != predictions_mlr$actual, ])
+    
+    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
+    tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = 2)
+    predictions_mlr = data.frame(top_1 = tmp[2,], top_2 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE, stringsAsFactors = FALSE)
+    correctly_classified2 = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) +
+      nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,])
+    
+    tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
+    tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = 3)
+    predictions_mlr = data.frame(top_1 = tmp[3,], top_2 = tmp[2, ], top_3 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE, stringsAsFactors = FALSE)
+    correctly_classified3 = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) + 
+      nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,]) + 
+      nrow(predictions_mlr[predictions_mlr$top_3 == predictions_mlr$actual,])
+    
+    # t2 = colnames(tmp2)[apply(tmp2,1,which.max)]
+    accuracy1 = (correctly_classified1 / nrow(test_data)) * 100
+    accuracy2 = (correctly_classified2 / nrow(test_data)) * 100
+    accuracy3 = (correctly_classified3 / nrow(test_data)) * 100
+    
+    accuracies1[k] = accuracy1
+    accuracies2[k] = accuracy2
+    accuracies3[k] = accuracy3
+  }
   
-  train_data = tmp_df[train_data_instances,]
-  train_data = balance_classes(train_data)
-  
-  test_data = tmp_df[test_data_instances,]
-  
-  nb = naive_bayes(HOST_INSTITUTION_COUNTRY_CDE~., train_data, laplace = laplace)
-  
-  # home <- as.matrix(table(erasmushome))
-  # tmp = nb %class% test_data # Alternative option
-  # TODO refactor so that it calculates top - 3 probabilities straight away
-  
-  tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "class", threshold = 0.5)
-  f1_score = f1(table(tmp, test_data$HOST_INSTITUTION_COUNTRY_CDE))
-  predictions_mlr = data.frame(predicted = tmp, actual = test_data$HOST_INSTITUTION_COUNTRY_CDE)
-  correctly_classified1 = nrow(predictions_mlr[predictions_mlr$predicted == predictions_mlr$actual, ])
-  incorrectly_classified = nrow(predictions_mlr[predictions_mlr$predicted != predictions_mlr$actual, ])
-  
-  tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
-  tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = 2)
-  predictions_mlr = data.frame(top_1 = tmp[2,], top_2 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE, stringsAsFactors = FALSE)
-  correctly_classified2 = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) +
-    nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,])
-  
-  tmp = predict(nb, test_data[ , !(colnames(test_data) == 'HOST_INSTITUTION_COUNTRY_CDE')], type = "prob", threshold = 0.5)
-  tmp = apply(tmp, 1, top_n_accuracy, top_accuracy = 3)
-  predictions_mlr = data.frame(top_1 = tmp[3,], top_2 = tmp[2, ], top_3 = tmp[1, ], actual = test_data$HOST_INSTITUTION_COUNTRY_CDE, stringsAsFactors = FALSE)
-  correctly_classified3 = nrow(predictions_mlr[predictions_mlr$top_1 == predictions_mlr$actual, ]) + 
-    nrow(predictions_mlr[predictions_mlr$top_2 == predictions_mlr$actual,]) + 
-    nrow(predictions_mlr[predictions_mlr$top_3 == predictions_mlr$actual,])
-  
-  # t2 = colnames(tmp2)[apply(tmp2,1,which.max)]
-  accuracy1 = (correctly_classified1 / nrow(test_data)) * 100
-  accuracy2 = (correctly_classified2 / nrow(test_data)) * 100
-  accuracy3 = (correctly_classified3 / nrow(test_data)) * 100
-  
-  cat(sprintf("Naive Bayes top-1 accuracy: %f%%\n\n", accuracy1))
+  cat(sprintf("Naive Bayes top-1 accuracy: %f%%\n\n", mean(accuracies1)))
   cat(sprintf("Naive Bayes F1 score: %f\n\n", mean(f1_score)))
-  cat(sprintf("Naive Bayes top-2 accuracy: %f%%\n\n", accuracy2))
-  cat(sprintf("Naive Bayes top-3 accuracy: %f%%\n\n", accuracy3))
+  cat(sprintf("Naive Bayes top-2 accuracy: %f%%\n\n", mean(accuracies2)))
+  cat(sprintf("Naive Bayes top-3 accuracy: %f%%\n\n", mean(accuracies3)))
   
   cat(sprintf("----------Naive Bayes classifier work is over!----------\n"))
 }
 
-custom_random_forest <- function(tmp_df, number_of_trees = 200, mtry = 4, percentage_train = 0.7) {
+# Function testing Random Forest
+custom_random_forest <- function(tmp_df, number_of_trees = 200, mtry = 4, percentage_train = 0.7, with_balancing=FALSE) {
   cat(sprintf("----------Starting Random Forest classifier!----------\n"))
   
   # Features selection
@@ -226,7 +242,11 @@ custom_random_forest <- function(tmp_df, number_of_trees = 200, mtry = 4, percen
   test_data_instances = setdiff(tmp, train_data_instances)
   train_data = tmp_df[train_data_instances,]
   test_data = tmp_df[test_data_instances,]
-  
+  if(with_balancing) {
+    train_data = balance_classes(train_data)
+    train_data = balance_classes(train_data)
+    train_data = balance_classes(train_data)
+  }
   
   start_time = Sys.time()
   rf <- randomForest(HOST_INSTITUTION_COUNTRY_CDE~., data = train_data, ntree = number_of_trees, mtry = mtry, importance = TRUE)

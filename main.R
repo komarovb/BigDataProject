@@ -140,7 +140,7 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 2) {
     if(classification_method == 0) {
       # Classification using Naive Bayes method
       laplace = 0.5
-      with_balancing = FALSE
+      with_balancing = FALSE # Flag showing if we are going to apply class balancing on the dataset
       accuracy = custom_naive_bayes(s_df, 0.5, with_balancing = with_balancing)
     } else if(classification_method == 1) {
       s_df = remove_columns(s_df, c('HOME_INSTITUTION_CDE'))
@@ -148,7 +148,7 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 2) {
       number_of_trees = 300
       mtry = 3
       percentage_train = 0.7
-      with_balancing = FALSE
+      with_balancing = FALSE # Flag showing if we are going to apply class balancing on the dataset 
       custom_random_forest(s_df, number_of_trees = number_of_trees, mtry = mtry, percentage_train = percentage_train, with_balancing = with_balancing)
     } else {
       cat(sprintf("\nUnknown value for classification_method parameter: %d\n", classification_method))

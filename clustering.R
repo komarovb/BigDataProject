@@ -10,7 +10,12 @@ library(dplyr)
 library(cluster)
 library(factoextra)
 
-clustering <- function(s_df, k = 3) {
+# Function used for data normalisation
+normalize <- function(x){
+  return((x-min(x))/max(x)-min(x))
+}
+
+clustering <- function(s_df, k = 2) {
   cat(sprintf("----------Starting clustering!----------\n"))
   # FOR CLUSTERING
   # Create a separate table with summary information about Host universities
@@ -51,12 +56,31 @@ clustering <- function(s_df, k = 3) {
   df = tmp_results
   
   # Backing up the resulting dataset
-  write.csv(df, file = 'clustering_data.csv', row.names = FALSE)
+  write.csv(df, file = 'data/clustering_data.csv', row.names = FALSE)
   
-  #The average silhouette measures the quality of a clustering
-  #fviz_nbclust(df,pam, method = c("silhouette"))
+  clustering_results_file = "data/clustering_results.csv"
+  Data = df
+  Data_n=Data[,-1]
+  # Normalize the data
+  for (i in colnames(Data_n)){
+    Data_n[,i]=normalize(Data_n[,i])
+  }
+  
+  Data_n = Data_n[,c("CONNECTED_UNIVERSITIES", "LANGUAGES_TAUGHT", "SUBJECTS_TAUGHT", "STUDENTS_ARRIVED", "STUDY_LENGTH")]
+  
+  # Finding optimal number of clusters for our problem - calculating silhoutette width
+  # The average silhouette measures the quality of a clustering
+  fviz_nbclust(Data_n,pam, method = c("silhouette"))
   
   
+  
+  pam.res <- pam(Data_n, k)
+  
+  # Add the point classifications to the original data
+  clusterdata <- cbind(Data, cluster = pam.res$cluster)
+  write.csv(clusterdata, file = clustering_results_file)
+  
+  cat(sprintf("Clustering results can be found under: %s\n", clustering_results_file))
   
   cat(sprintf("----------Clustering is done!----------\n"))
 }

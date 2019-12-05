@@ -128,6 +128,31 @@ sfs <- function(data) {
   return(colnames(df[selected_features]))
 }
 
+# Function used to slightly balance classes
+balance_classes <- function(s_df) {
+  cat(sprintf("----------Starting balancing classes!----------\n"))
+  before = sort(table(s_df$HOST_INSTITUTION_COUNTRY_CDE))
+  bottom10 = before[1:10]
+  top10 = before[(length(before)-10):length(before)]
+  cat(sprintf("----------Number of instances in top 10 classes: %d----------\n", sum(top10)))
+  cat(sprintf("----------Number of instances in bottom 10 classes: %d----------\n", sum(bottom10)))
+  
+  under_represented_instances = s_df[s_df$HOST_INSTITUTION_COUNTRY_CDE %in% names(bottom10),]
+  number_of_instances_to_take = sample(nrow(under_represented_instances), nrow(under_represented_instances)*2, replace = TRUE)
+  to_add = under_represented_instances[number_of_instances_to_take,]
+  rownames(to_add) = NULL
+  s_df = rbind(s_df, to_add)
+  
+  over_represented_instances = s_df[s_df$HOST_INSTITUTION_COUNTRY_CDE %in% names(top10),]
+  number_of_instances_to_take = sample(nrow(over_represented_instances), nrow(over_represented_instances)*0.3)
+  to_remove = over_represented_instances[number_of_instances_to_take,]
+  to_remove = as.numeric(rownames(to_remove))
+  s_df = s_df[-to_remove,]
+  
+  cat(sprintf("----------Class balancing is over!----------\n"))
+  return(s_df)
+}
+
 # Custom application of the Naive Bayes method
 # All the data preprocessing should be done beforehand!
 custom_naive_bayes <- function(tmp_df, percentage_train, laplace) {
@@ -145,6 +170,8 @@ custom_naive_bayes <- function(tmp_df, percentage_train, laplace) {
   test_data_instances = setdiff(tmp, train_data_instances)
   
   train_data = tmp_df[train_data_instances,]
+  train_data = balance_classes(train_data)
+  
   test_data = tmp_df[test_data_instances,]
   
   nb = naive_bayes(HOST_INSTITUTION_COUNTRY_CDE~., train_data, laplace = laplace)

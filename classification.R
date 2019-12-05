@@ -66,7 +66,7 @@ best_feature <- function (test_data, train_data, features, selected_features, cl
 # The function takes one argument
 #   * data - dataset with the last column as a target variable
 #
-# The function prints to console the set of important features
+# The function returns and prints to console the set of important features
 sfs <- function(data) {
   cat(sprintf("Starting Sequential Forwards Selection algorithm for dataset\n\n"))
   
@@ -129,6 +129,7 @@ sfs <- function(data) {
 }
 
 # Function used to slightly balance classes
+# Detailed explanation of the algorithm can be found in the report.
 balance_classes <- function(s_df) {
   cat(sprintf("----------Starting balancing classes!----------\n"))
   before = sort(table(s_df$HOST_INSTITUTION_COUNTRY_CDE))
@@ -156,7 +157,15 @@ balance_classes <- function(s_df) {
 }
 
 # Custom application of the Naive Bayes method
-# All the data preprocessing should be done beforehand!
+# All the data preprocessing should be done beforehand!!!
+# 
+# Input arguments:
+#   * tmp_df - data frame to apply naive bayes to
+#   * laplace - laplace smoothing coefficient
+#   * with_balancing - flag, if set to true additional preprocessing technique class balancing 
+#     will be applied on the tmp_df
+#
+# The function prints to console top 3 accuracies and f-score
 custom_naive_bayes <- function(tmp_df, laplace, with_balancing=FALSE) {
   # Predict: HOST_INSTITUTION_COUNTRY_CDE
   cat(sprintf("----------Starting Naive Bayes classifier!----------\n"))
@@ -172,6 +181,7 @@ custom_naive_bayes <- function(tmp_df, laplace, with_balancing=FALSE) {
   accuracies3 = c()
   # Randomly permute data
   tmp_df<-tmp_df[sample(nrow(tmp_df)),]
+  # Implementing 5-fold cross validation
   for(k in 1:5) {
     instances_per_fold = ceiling(nrow(tmp_df) / 5)
     
@@ -229,6 +239,13 @@ custom_naive_bayes <- function(tmp_df, laplace, with_balancing=FALSE) {
 }
 
 # Function testing Random Forest
+# Input arguments
+#   * tmp_df - data frame to apply random forest to
+#   * number_of_trees - number of trees to build
+#   * mtry - number of attributes randomly sampled at each split
+#   * percentage_train - training set size out of the whole dataset
+#   * with_balancing - flag, if set to true additional preprocessing technique class balancing 
+#     will be applied on the tmp_df
 custom_random_forest <- function(tmp_df, number_of_trees = 300, mtry = 4, percentage_train = 0.7, with_balancing=FALSE) {
   cat(sprintf("----------Starting Random Forest classifier!----------\n"))
   

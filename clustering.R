@@ -15,6 +15,16 @@ normalize <- function(x){
   return((x-min(x))/max(x)-min(x))
 }
 
+# Function performing clustering of our dataset
+# Input arguments:
+#   * s_df - data frame to apply aggregation on 
+#   * k - number of clusters, the default value is 2 as the best value found experimentally
+#     in terms of silhouette width
+# This function takes the dataset and aggregates Host universities related data 
+# then it performs clustering on the aggregated data
+#  
+# Intermediate aggregation results are stored under 'data/clustering_data.csv'
+# Clustering results are stored under 'data/clustering_results.csv'
 clustering <- function(s_df, k = 2) {
   cat(sprintf("----------Starting clustering!----------\n"))
   # FOR CLUSTERING

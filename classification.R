@@ -157,7 +157,7 @@ balance_classes <- function(s_df) {
 
 # Custom application of the Naive Bayes method
 # All the data preprocessing should be done beforehand!
-custom_naive_bayes <- function(tmp_df, percentage_train, laplace, with_balancing=FALSE) {
+custom_naive_bayes <- function(tmp_df, laplace, with_balancing=FALSE) {
   # Predict: HOST_INSTITUTION_COUNTRY_CDE
   cat(sprintf("----------Starting Naive Bayes classifier!----------\n"))
   
@@ -182,6 +182,7 @@ custom_naive_bayes <- function(tmp_df, percentage_train, laplace, with_balancing
     
     test_data = tmp_df[test_instances,]
     train_data = tmp_df[train_instances,]
+    # Dataset balancing
     if(with_balancing) {
       train_data = balance_classes(train_data)
       train_data = balance_classes(train_data)
@@ -228,7 +229,7 @@ custom_naive_bayes <- function(tmp_df, percentage_train, laplace, with_balancing
 }
 
 # Function testing Random Forest
-custom_random_forest <- function(tmp_df, number_of_trees = 200, mtry = 4, percentage_train = 0.7, with_balancing=FALSE) {
+custom_random_forest <- function(tmp_df, number_of_trees = 300, mtry = 4, percentage_train = 0.7, with_balancing=FALSE) {
   cat(sprintf("----------Starting Random Forest classifier!----------\n"))
   
   # Features selection
@@ -242,6 +243,9 @@ custom_random_forest <- function(tmp_df, number_of_trees = 200, mtry = 4, percen
   test_data_instances = setdiff(tmp, train_data_instances)
   train_data = tmp_df[train_data_instances,]
   test_data = tmp_df[test_data_instances,]
+  
+  
+  # Dataset balancing
   if(with_balancing) {
     train_data = balance_classes(train_data)
     train_data = balance_classes(train_data)

@@ -43,7 +43,6 @@ remove_columns <- function(df, columns_to_drop) {
 # We have three primary program modes implemented (value for program_mode parameter):
 #   * Classification - 0
 #   * Clustering - 1
-#   * Descriptive analytics - 2
 # For any of the modes work the corresponding file should be present in the same directory as 'main.R'
 #
 # For classisfication we implemented Naive bayes classifier and Random Forest classifier
@@ -140,17 +139,17 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
     print("----------Data preprocessing is over----------")
     if(classification_method == 0) {
       # Classification using Naive Bayes method
-      percentage_train = 0.7
       laplace = 0.5
-      with_balancing = TRUE
-      accuracy = custom_naive_bayes(s_df, percentage_train, 0.5, with_balancing = with_balancing)
+      with_balancing = FALSE
+      accuracy = custom_naive_bayes(s_df, 0.5, with_balancing = with_balancing)
     } else if(classification_method == 1) {
       s_df = remove_columns(s_df, c('HOME_INSTITUTION_CDE'))
       # Classification using Random Forest method
       number_of_trees = 300
-      mtry = 4
+      mtry = 3
       percentage_train = 0.7
-      custom_random_forest(s_df, number_of_trees = number_of_trees, mtry = mtry, percentage_train = percentage_train)
+      with_balancing = TRUE
+      custom_random_forest(s_df, number_of_trees = number_of_trees, mtry = mtry, percentage_train = percentage_train, with_balancing = with_balancing)
     } else {
       cat(sprintf("\nUnknown value for classification_method parameter: %d\n", classification_method))
     }
@@ -166,9 +165,6 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 3) {
       clustering(s_df)
       print("----------Clustering is over!----------")
     }
-  } else if(program_mode == 2) {
-    print("----------Starting descriptive analytics----------")
-    print("----------Descriptive analytics over!----------")
   } else {
     cat(sprintf("\nUnknown value for program_mode parameter: %d\n", program_mode))
   }

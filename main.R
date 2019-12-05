@@ -121,7 +121,7 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 2) {
   s_df$STUDY_GRANT_AMT = lapply(s_df$STUDY_GRANT_AMT, transform_grant)
   s_df$STUDY_GRANT_AMT = unlist(s_df$STUDY_GRANT_AMT)
   
-  print("----------Initial data preprocessing is OVER----------\n")
+  print("----------Initial data preprocessing is OVER------------")
   # Checking program mode:
   #   * Classification - 0
   #   * Clustering - 1
@@ -145,7 +145,7 @@ run_program <- function(program_mode = 0, classification_method = 0, k = 2) {
     } else if(classification_method == 1) {
       s_df = remove_columns(s_df, c('HOME_INSTITUTION_CDE'))
       # Classification using Random Forest method
-      number_of_trees = 300
+      number_of_trees = 100
       mtry = 3
       percentage_train = 0.7
       with_balancing = FALSE # Flag showing if we are going to apply class balancing on the dataset 

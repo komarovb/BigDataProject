@@ -1,0 +1,10 @@
+Naive Bayes: https://machinelearningmastery.com/naive-bayes-classifier-scratch-python/
+
+Naive: https://soundcloud.com/naivetrax
+
+Random Forest bad results: https://sciencing.com/deforestation-affect-air-10632.html
+Forest: https://cottagelife.com/outdoors/how-to-turn-your-cottage-walk-into-a-stress-reducing-forest-bath/
+
+ELM: https://www.researchgate.net/publication/265608741_Large-Scale_Protein-Protein_Interactions_Detection_by_Integrating_Big_Biosensing_Data_with_Computational_Model/figures?lo=1
+
+

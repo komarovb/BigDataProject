@@ -1,0 +1,20 @@
+Run 1
+Random Forest top-1 accuracy: 58.123555% AVERAGE: 59.21Random Forest F1 score: 0.310031	AVERAGE: 0.329Random Forest top-2 accuracy: 63.411374% AVERAGE: 65.93Random Forest top-3 accuracy: 66.334376% AVERAGE: 69.5
+
+Run 2
+
+Random Forest top-1 accuracy: 58.516643%Random Forest F1 score: 0.315856Random Forest top-2 accuracy: 63.927106%Random Forest top-3 accuracy: 66.867404%
+
+Run 3
+
+Random Forest top-1 accuracy: 61.002531%Random Forest F1 score: 0.362976Random Forest top-2 accuracy: 70.480668%Random Forest top-3 accuracy: 75.337663%
+
+Balanced
+Run 1
+Random Forest top-1 accuracy: 52.384471% AVERAGE: 53.04Random Forest F1 score: 0.302006	 AVERAGE: 0.303Random Forest top-2 accuracy: 62.177078% AVERAGE: 62.74Random Forest top-3 accuracy: 66.916146% AVERAGE: 67.39
+
+Run 2
+Random Forest top-1 accuracy: 52.599884%Random Forest F1 score: 0.300480Random Forest top-2 accuracy: 62.230538%Random Forest top-3 accuracy: 67.068665%
+
+Run 3
+Random Forest top-1 accuracy: 54.170663%Random Forest F1 score: 0.309442Random Forest top-2 accuracy: 63.837482%Random Forest top-3 accuracy: 68.211764%
